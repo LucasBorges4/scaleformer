@@ -24,7 +24,6 @@ import torch
 import torch.nn as nn
 import math
 
-
 class AutoCorrelation(nn.Module):
     """
     AutoCorrelation Mechanism with the following two phases:
@@ -48,9 +47,10 @@ class AutoCorrelation(nn.Module):
         head = values.shape[1]
         channel = values.shape[2]
         length = values.shape[3]
-        # find top k
-        top_k = int(self.factor * math.log(length))
+        # find top k (robust)
+        top_k = max(1, min(length, int(self.factor * math.log(length + 1))))
         mean_value = torch.mean(torch.mean(corr, dim=1), dim=1)
+        # index: (B, top_k)
         index = torch.topk(torch.mean(mean_value, dim=0), top_k, dim=-1)[1]
         weights = torch.stack([mean_value[:, index[i]] for i in range(top_k)], dim=-1)
         # update corr
@@ -76,8 +76,8 @@ class AutoCorrelation(nn.Module):
         # index init
         init_index = torch.arange(length).unsqueeze(0).unsqueeze(0).unsqueeze(0)\
             .repeat(batch, head, channel, 1).to(values.device)
-        # find top k
-        top_k = int(self.factor * math.log(length))
+        # find top k (robust)
+        top_k = max(1, min(length, int(self.factor * math.log(length + 1))))
         mean_value = torch.mean(torch.mean(corr, dim=1), dim=1)
         weights, delay = torch.topk(mean_value, top_k, dim=-1)
         # update corr
@@ -103,8 +103,8 @@ class AutoCorrelation(nn.Module):
         # index init
         init_index = torch.arange(length).unsqueeze(0).unsqueeze(0).unsqueeze(0)\
             .repeat(batch, head, channel, 1).to(values.device)
-        # find top k
-        top_k = int(self.factor * math.log(length))
+        # find top k (robust)
+        top_k = max(1, min(length, int(self.factor * math.log(length + 1))))
         weights, delay = torch.topk(corr, top_k, dim=-1)
         # update corr
         tmp_corr = torch.softmax(weights, dim=-1)
@@ -120,8 +120,12 @@ class AutoCorrelation(nn.Module):
     def forward(self, queries, keys, values, attn_mask):
         B, L, H, E = queries.shape
         _, S, _, D = values.shape
+
+        # --- CORRECT PAD (antes havia slice incorreto usando queries slices) ---
         if L > S:
-            zeros = torch.zeros_like(queries[:, :(L - S), :]).float()
+            pad_len = L - S
+            # criar zeros com shape compatível (B, pad_len, H, D)
+            zeros = torch.zeros((B, pad_len, H, D), device=values.device, dtype=values.dtype)
             values = torch.cat([values, zeros], dim=1)
             keys = torch.cat([keys, zeros], dim=1)
         else:
@@ -129,10 +133,27 @@ class AutoCorrelation(nn.Module):
             keys = keys[:, :L, :, :]
 
         # period-based dependencies
+        # queries: (B, L, H, E) -> permute (B, H, E, L)
         q_fft = torch.fft.rfft(queries.permute(0, 2, 3, 1).contiguous(), dim=-1)
         k_fft = torch.fft.rfft(keys.permute(0, 2, 3, 1).contiguous(), dim=-1)
         res = q_fft * torch.conj(k_fft)
-        corr = torch.fft.irfft(res, dim=-1)
+
+        # Safe irfft: se res.size(-1) == 0, criar corr zeros com shape correta
+        if res is None or res.numel() == 0 or res.size(-1) == 0:
+            # fallback: construir corr com zeros no shape esperado: (B, H, E, L)
+            corr = torch.zeros((B, H, E, L), device=queries.device, dtype=q_fft.dtype)
+        else:
+            corr = torch.fft.irfft(res, dim=-1)
+
+            # Em alguns casos a irfft pode retornar comprimento diferente; garantir que corr dim last == L
+            if corr.size(-1) != L:
+                # Se o tamanho for diferente, ajusta por truncamento ou padding
+                if corr.size(-1) > L:
+                    corr = corr[..., :L]
+                else:
+                    pad_len2 = L - corr.size(-1)
+                    pad_tensor = torch.zeros((*corr.shape[:-1], pad_len2), device=corr.device, dtype=corr.dtype)
+                    corr = torch.cat([corr, pad_tensor], dim=-1)
 
         # time delay agg
         if self.training:
