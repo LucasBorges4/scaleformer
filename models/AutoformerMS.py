@@ -23,6 +23,14 @@ class moving_avg(nn.Module):
         super(moving_avg, self).__init__()
 
     def forward(self, x, scale=1):
+        enc_seq_len = x_enc.size(1)  # comprimento da sequência encoder
+        
+        valid_scales = [s for s in self.scales if enc_seq_len >= s and s > 0]
+        if len(valid_scales) == 0:
+            # fallback: use scale 1 para garantir que algo rode
+            valid_scales = [1]
+        scales = valid_scales
+
         if x is None:
             return None
         # x: (batch, seq_len, channels)
