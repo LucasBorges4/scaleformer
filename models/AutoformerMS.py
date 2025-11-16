@@ -26,6 +26,16 @@ class moving_avg(nn.Module):
         enc_seq_len = x_enc.size(1)  # comprimento da sequência encoder
         
         valid_scales = [s for s in self.scales if enc_seq_len >= s and s > 0]
+
+        seq_len = queries.size(-1) if queries.dim() >= 3 else queries.size(1)
+        if seq_len == 0:
+            # Retorna tensor de forma compatível com o esperado a montante.
+            # Normalmente o primeiro retorno é `out`, segundo é `attn`
+            # devolvemos `queries` sem alteração e `None` para attn (ou zeros se preferir).
+            out = queries.clone()
+            attn = None
+            return out, attn
+
         if len(valid_scales) == 0:
             # fallback: use scale 1 para garantir que algo rode
             valid_scales = [1]
