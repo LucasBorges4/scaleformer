@@ -23,35 +23,26 @@ class moving_avg(nn.Module):
         super(moving_avg, self).__init__()
 
     def forward(self, x, scale=1):
-        enc_seq_len = x_enc.size(1)  # comprimento da sequência encoder
-        
-        valid_scales = [s for s in self.scales if enc_seq_len >= s and s > 0]
-
-        seq_len = queries.size(-1) if queries.dim() >= 3 else queries.size(1)
-        if seq_len == 0:
-            # Retorna tensor de forma compatível com o esperado a montante.
-            # Normalmente o primeiro retorno é `out`, segundo é `attn`
-            # devolvemos `queries` sem alteração e `None` para attn (ou zeros se preferir).
-            out = queries.clone()
-            attn = None
-            return out, attn
-
-        if len(valid_scales) == 0:
-            # fallback: use scale 1 para garantir que algo rode
-            valid_scales = [1]
-        scales = valid_scales
+        # x: (batch, seq_len, channels)
 
         if x is None:
             return None
-        # x: (batch, seq_len, channels)
-        x_perm = x.permute(0, 2, 1)  # -> (batch, channels, seq_len)
-        seq_len = x_perm.size(2)
-        # compute output size safely (at least 1)
+
+        seq_len = x.size(1)
+
+        # Garante escala válida
+        if scale <= 0:
+            scale = 1
+
+        # Evita seq_len // scale = 0
         out_size = max(1, seq_len // scale)
-        # use adaptive avg pool to avoid zero-length outputs
+
+        # Pooling adaptativo para reduzir a série temporal sem quebrar
+        x_perm = x.permute(0, 2, 1)              # (B, C, L)
         x_pooled = nn.functional.adaptive_avg_pool1d(x_perm, out_size)
-        x = x_pooled.permute(0, 2, 1)
-        return x
+        x_out = x_pooled.permute(0, 2, 1)        # (B, out_size, C)
+
+        return x_out
 
 
 class Model(nn.Module):
