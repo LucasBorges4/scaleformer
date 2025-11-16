@@ -118,8 +118,15 @@ class AutoCorrelation(nn.Module):
         return delays_agg
 
     def forward(self, queries, keys, values, attn_mask):
+
         B, L, H, E = queries.shape
         _, S, _, D = values.shape
+
+        if L == 0:
+        # devolve zeros compatíveis
+            out = torch.zeros(B, 0, H, E, device=queries.device)
+            return out, None
+
 
         # --- CORRECT PAD (antes havia slice incorreto usando queries slices) ---
         if L > S:
