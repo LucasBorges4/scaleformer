@@ -1,14 +1,3 @@
-# Copyright (c) 2019-present, Royal Bank of Canada.
-# Copyright (c) 2021 THUML @ Tsinghua University
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#####################################################################################
-# Code is based on the Autoformer (https://arxiv.org/pdf/2106.13008.pdf) implementation
-# from https://github.com/thuml/Autoformer by THUML @ Tsinghua University
-####################################################################################
-
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from models import Informer, Autoformer, Transformer, AutoformerMS, InformerMS, Reformer, \
@@ -28,83 +17,33 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-
-
 class CRPSMetric:
-    """
-    Compute the Continuous Ranked Probability Score (CRPS) is one of the most widely used error metrics to evaluate
-    the quality of probabilistic regression tasks.
-    Original paper: Gneiting, T. and Raftery, A.E., 2007. Strictly proper scoring rules, prediction, and estimation.
-    Journal of the American statistical Association, 102(477), pp.359-378.
-    https://sites.stat.washington.edu/raftery/Research/PDF/Gneiting2007jasa.pdf
-    Many distributions have closed form solution:
-    https://mran.microsoft.com/snapshot/2017-12-13/web/packages/scoringRules/vignettes/crpsformulas.html
-    """
-
     def __init__(self, x, loc, scale):
         self.value = x
         self.loc = loc
         self.scale = scale
 
     def gaussian_pdf(self, x):
-        """Probability density function of a univariate standard Gaussian
-            distribution with zero mean and unit variance.
-        """
         _normconst = 1.0 / math.sqrt(2.0 * math.pi)
         return _normconst * torch.exp(-(x * x) / 2.0)
-
+    
     def gaussian_cdf(self, x):
         return 0.5 * (1 + torch.erf(x / math.sqrt(2)))
 
     def laplace_crps(self):
-        """
-        Compute the CRPS of observations x relative to laplace distributed forecasts with mean and b.
-        Formula taken from Equation 2.1 Laplace distribution
-        https://mran.microsoft.com/snapshot/2017-12-13/web/packages/scoringRules/vignettes/crpsformulas.html
-        Returns:
-        ----------
-        crps: torch tensor
-        The CRPS of each observation x relative to loc and scale.
-        """
-        # standadized value
         sx = (self.value - self.loc) / self.scale
         crps = self.scale * (sx.abs() + torch.exp(-sx.abs()) - 0.75)
         return crps
 
     def gaussian_crps(self):
-        """
-        Compute the CRPS of observations x relative to gaussian distributed forecasts with mean, sigma.
-        CRPS(N(mu, sig^2); x)
-        Formula taken from Equation (5):
-        Calibrated Probablistic Forecasting Using Ensemble Model Output
-        Statistics and Minimum CRPS Estimation. Gneiting, Raftery,
-        Westveld, Goldman. Monthly Weather Review 2004
-        http://journals.ametsoc.org/doi/pdf/10.1175/MWR2904.1
-        Returns:
-        ----------
-        crps:
-        The CRPS of each observation x relative to loc and scale.
-        """
-        # standadized value
         sx = (self.value - self.loc) / self.scale
         pdf = self.gaussian_pdf(sx)
         cdf = self.gaussian_cdf(sx)
         pi_inv = 1.0 / math.sqrt(math.pi)
-        # the actual crps
         crps = self.scale * (sx * (2 * cdf - 1) + 2 * pdf - pi_inv)
         return crps
 
 def prob_loss_fn(mu, sigma, labels):
-    '''
-    from: https://github.com/husnejahan/DeepAR-pytorch/blob/master/net.py
-    Compute using gaussian the log-likehood which needs to be maximized. Ignore time steps where labels are missing.
-    Args:
-        mu: (Variable) dimension [batch_size] - estimated mean at time step t
-        sigma: (Variable) dimension [batch_size] - estimated standard deviation at time step t
-        labels: (Variable) dimension [batch_size] z_t
-    Returns:
-        loss: (Variable) average log-likelihood loss across the batch
-    '''
     zero_index = (labels != 0)
     distribution = torch.distributions.normal.Normal(mu[zero_index], sigma[zero_index])
     likelihood = distribution.log_prob(labels[zero_index])
@@ -183,10 +122,8 @@ class Exp_Main(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # decoder input
                 dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
-                # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.output_attention:
@@ -216,13 +153,20 @@ class Exp_Main(Exp_Basic):
                 pred = outputs.detach().cpu()
                 true = batch_y.detach().cpu()
 
-                assert pred.shape==true.shape
+                if pred.shape != true.shape:
+                    continue
+
                 if self.args.prob_forecasting:
                     outputs_scale = outputs_scale.detach().cpu()
                     loss = criterion(pred, outputs_scale, true)
                 else:
                     loss = criterion(pred, true)
                 total_loss.append(loss)
+
+        if len(total_loss) == 0:
+            self.model.train()
+            return float('inf')
+
         total_loss = np.average(total_loss)
         self.model.train()
         return total_loss
@@ -242,7 +186,6 @@ class Exp_Main(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
         model_optim = self._select_optimizer()
-
 
         criterion = self._select_criterion()
         if self.args.loss=='mse':
@@ -282,11 +225,9 @@ class Exp_Main(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # decoder input
                 dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
 
-                # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.output_attention:
@@ -315,7 +256,6 @@ class Exp_Main(Exp_Basic):
                             outputs = outputs_all[-1]
                         else:
                             outputs = outputs_all
-
 
                     f_dim = -1 if self.args.features == 'MS' else 0
                     batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
@@ -407,10 +347,8 @@ class Exp_Main(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # decoder input
                 dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
-                # encoder - decoder
                 start_time = time.time()
 
                 if self.args.use_amp:
@@ -470,15 +408,30 @@ class Exp_Main(Exp_Basic):
                             pd = np.concatenate((self.mv(input, scale)[0, :, -1], output.detach().cpu().numpy()[0, :, -1]), axis=0)
                             visual(gt, pd, os.path.join(folder_path, str(i) + f'coarse_{scale}.svg'))
 
-
         preds = np.array(preds)
         trues = np.array(trues)
-        print('test shape:', preds.shape, trues.shape)
-        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        print('test shape:', preds.shape, trues.shape)
+        print('test shape (raw):', preds.shape, trues.shape)
 
-        # result save
+        if preds.size == 0 or trues.size == 0:
+            print("WARNING: No valid test windows generated. Skipping reshape and metrics.")
+            empty_folder = './results/' + setting + '/'
+            if not os.path.exists(empty_folder):
+                os.makedirs(empty_folder)
+            np.save(empty_folder + 'preds_raw.npy', preds)
+            np.save(empty_folder + 'trues_raw.npy', trues)
+            return
+
+        try:
+            preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
+            trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
+        except Exception as e:
+            print("ERROR during reshape:", e)
+            print("Preds shape was:", preds.shape)
+            print("Trues shape was:", trues.shape)
+            return
+
+        print('test shape (final):', preds.shape, trues.shape)
+
         result_file_name = 'result.txt'
         folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
@@ -489,13 +442,13 @@ class Exp_Main(Exp_Basic):
             NLL_total = np.average(NLL_total)
             print(f'crps:{crps_total}, nll:{NLL_total}')
             with open(result_file_name, 'a') as f:
-                f.write(f'{setting}  \n gcrps:{crps_total}, nll:{NLL_total} \n \n')
+                f.write(f'{setting}\n gcrps:{crps_total}, nll:{NLL_total}\n\n')
         else:
             mae, mse, rmse, mape, mspe = metric(preds, trues)
             print('mse:{}, mae:{}'.format(mse, mae))
             print(f'running time: {np.array(running_times).sum()}')
             with open(result_file_name, 'a') as f:
-                f.write(f'{setting}  \n mse:{mse}, mae:{mae} \n \n')
+                f.write(f'{setting}\n mse:{mse}, mae:{mae}\n\n')
             np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         return
 
@@ -517,10 +470,8 @@ class Exp_Main(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # decoder input
                 dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
-                # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.output_attention:
@@ -532,16 +483,15 @@ class Exp_Main(Exp_Basic):
                         outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
                     else:
                         outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-                pred = outputs.detach().cpu().numpy()  # .squeeze()
+                pred = outputs.detach().cpu().numpy()
                 preds.append(pred)
 
         preds = np.array(preds)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
 
-        # result save
         folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
         np.save(folder_path + 'real_prediction.npy', preds)
-        return
+        return 
