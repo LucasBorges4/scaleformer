@@ -25,7 +25,7 @@ class moving_avg(nn.Module):
     def forward(self, x, scale=1):
         if x is None:
             return None
-        x = nn.functional.avg_pool1d(x.permute(0, 2, 1), scale, scale)
+        x = nn.functional.avg_pool1d(x.permute(0, 2, 1), scale+2, scale)
         x = x.permute(0, 2, 1)
         return x
 
@@ -110,7 +110,25 @@ class Model(nn.Module):
                 dec_out[:, :label_len//scale, :] = self.mv(x_dec[:, :label_len, :], scale)
 
             # cross-scale normalization
-            mean = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1).mean(1).unsqueeze(1)
+            #mean = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1).mean(1).unsqueeze(1)
+            
+            # média geométrica ao longo da dimensão temporal
+            #mean = abs(torch.exp(torch.log(torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1) + 1e-5).mean(1)).unsqueeze(1))
+
+            # concatenação das saídas
+            Z = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1)  # [B, T, D]
+
+            # média móvel de 15 dias ao longo da dimensão temporal
+            mean = nn.functional.avg_pool1d(
+                Z.permute(0, 2, 1),  # [B, D, T]
+                kernel_size=15,
+                stride=1,
+                padding=7            # padding para manter alinhamento
+            ).permute(0, 2, 1)       # volta para [B, T, D]
+
+            # reduz para uma média global (um valor por série)
+            mean = mean.mean(1, keepdim=True)
+
             if self.use_stdev_norm:
                 stdev = torch.sqrt(torch.var(torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1), dim=1, keepdim=True, unbiased=False)+ 1e-5).detach() 
                 enc_out = enc_out / stdev
