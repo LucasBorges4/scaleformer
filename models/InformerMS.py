@@ -119,11 +119,12 @@ class Model(nn.Module):
             Z = torch.cat((enc_out, dec_out[:, dec_future_len:, :]), 1)
 
             # cálculo da média (exemplo: média aritmética + ajuste)
-            mean = Z.mean(1).unsqueeze(1) + Z.mean(1).unsqueeze(1) / 2
+            mean = Z.mean(1).unsqueeze(1)
+            mean = torch.clamp(mean, min=1e-3)  # Evita valores muito pequenos
 
             if self.use_stdev_norm:
                 stdev = torch.sqrt(
-                    torch.var(Z, dim=1, keepdim=True, unbiased=False) + 1e-5
+                    torch.var(Z, dim=1, keepdim=True, unbiased=False) + 1e-3
                 ).detach()
                 enc_out = enc_out / stdev
                 dec_out = dec_out / stdev
