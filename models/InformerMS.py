@@ -110,12 +110,9 @@ class Model(nn.Module):
                 dec_out[:, :label_len//scale, :] = self.mv(x_dec[:, :label_len, :], scale)
 
             # cross-scale normalization
-            #mean = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1).mean(1).unsqueeze(1)
-            Z = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1)  # concatenação [B, T, D]
-
-            # média geométrica ao longo da dimensão temporal
-            mean = torch.exp(torch.log(Z + 1e-5).mean(1)).unsqueeze(1)
-
+            mean = torch.exp(
+                torch.log(torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1) + 1e-5).mean(1)
+            ).unsqueeze(1)
             
             if self.use_stdev_norm:
                 stdev = torch.sqrt(torch.var(torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1), dim=1, keepdim=True, unbiased=False)+ 1e-5).detach() 
