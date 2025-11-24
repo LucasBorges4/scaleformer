@@ -113,7 +113,7 @@ class Model(nn.Module):
             mean = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1)
             mean = mean.mean(1).unsqueeze(1)
 
-            mean = torch.log(mean + 1e-5, dim=1).unsqueeze(1)
+            mean = torch.log(mean + 1e-5).unsqueeze(1)
 
             
             if self.use_stdev_norm:
