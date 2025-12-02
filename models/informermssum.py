@@ -16,31 +16,19 @@ from layers.SelfAttention_Family import ProbAttention, AttentionLayer
 from layers.Embed import DataEmbedding_mine
 
 class moving_avg(nn.Module):
+    """
+    Downsample series using an average pooling
+    """
     def __init__(self):
-        super().__init__()
+        super(moving_avg, self).__init__()
 
     def forward(self, x, scale=1):
-        if x is None or scale == 1:
-            return x
+        if x is None:
+            return None
+        x = nn.functional.avg_pool1d(x.permute(0, 2, 1), scale, scale)
+        x = x.permute(0, 2, 1)
+        return x
 
-        B, T, C = x.shape
-
-        # depthwise convolution: 1 kernel por canal
-        kernel = torch.ones(C, 1, scale, device=x.device) / scale
-
-        x_perm = x.permute(0, 2, 1)  # (B, C, T)
-
-        pad = scale // 2
-
-        x_smooth = torch.nn.functional.conv1d(
-            x_perm,
-            kernel,          # shape (C,1,K)
-            stride=scale,
-            padding=pad,
-            groups=C         # <- depthwise conv (canal independente)
-        )
-
-        return x_smooth.permute(0, 2, 1)
 
 class Model(nn.Module):
     """
@@ -122,13 +110,27 @@ class Model(nn.Module):
                 dec_out[:, :label_len//scale, :] = self.mv(x_dec[:, :label_len, :], scale)
 
             # cross-scale normalization
-            mean = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1).mean(1).unsqueeze(1)
+            # cross-scale normalization
+
+            # variável que regula o tamanho do dec_out usado na concatenação
+            dec_future_len = label_len // scale
+
+            # concatenação usando a variável
+            Z = torch.cat((enc_out, dec_out[:, dec_future_len:, :]), 1)
+
+            # cálculo da média (exemplo: média aritmética + ajuste)
+            mean = Z.mean(1).unsqueeze(1)
+            mean = torch.clamp(mean, min=1e-3)  # Evita valores muito pequenos
+
             if self.use_stdev_norm:
-                stdev = torch.sqrt(torch.var(torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1), dim=1, keepdim=True, unbiased=False)+ 1e-5).detach() 
+                stdev = torch.sqrt(
+                    torch.var(Z, dim=1, keepdim=True, unbiased=False) + 1e-3
+                ).detach()
                 enc_out = enc_out / stdev
                 dec_out = dec_out / stdev
-            enc_out = enc_out - mean
-            dec_out = dec_out - mean
+
+            enc_out = enc_out + mean
+            dec_out = dec_out + mean
 
             enc_out = self.enc_embedding(enc_out, x_mark_enc[:, scale//2::scale], scale=scale, first_scale=scales[0], label_len=label_len)
             enc_out, attns = self.encoder(enc_out)
