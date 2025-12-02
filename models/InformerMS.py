@@ -16,18 +16,31 @@ from layers.SelfAttention_Family import ProbAttention, AttentionLayer
 from layers.Embed import DataEmbedding_mine
 
 class moving_avg(nn.Module):
-    """
-    Downsample series using an average pooling
-    """
     def __init__(self):
-        super(moving_avg, self).__init__()
+        super().__init__()
 
     def forward(self, x, scale=1):
-        if x is None:
-            return None
-        x = nn.functional.avg_pool1d(x.permute(0, 2, 1), scale, scale)
-        x = x.permute(0, 2, 1)
-        return x
+        if x is None or scale == 1:
+            return x
+
+        # kernel = média suave
+        kernel = torch.ones(1, 1, scale, device=x.device) / scale
+
+        # entrada no formato (B, C, T)
+        x_perm = x.permute(0, 2, 1)
+
+        # padding para não perder borda
+        pad = scale // 2
+
+        x_smooth = torch.nn.functional.conv1d(
+            x_perm,
+            kernel,
+            stride=scale,    # downsample
+            padding=pad,
+            groups=1,
+        )
+
+        return x_smooth.permute(0, 2, 1)
 
 
 class Model(nn.Module):
