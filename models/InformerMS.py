@@ -110,27 +110,13 @@ class Model(nn.Module):
                 dec_out[:, :label_len//scale, :] = self.mv(x_dec[:, :label_len, :], scale)
 
             # cross-scale normalization
-            # cross-scale normalization
-
-            # variável que regula o tamanho do dec_out usado na concatenação
-            dec_future_len = label_len // scale
-
-            # concatenação usando a variável
-            Z = torch.cat((enc_out, dec_out[:, dec_future_len:, :]), 1)
-
-            # cálculo da média (exemplo: média aritmética + ajuste)
-            mean = Z.mean(1).unsqueeze(1)
-            mean = torch.clamp(mean, min=1e-3)  # Evita valores muito pequenos
-
+            mean = torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1).mean(1).unsqueeze(1)
             if self.use_stdev_norm:
-                stdev = torch.sqrt(
-                    torch.var(Z, dim=1, keepdim=True, unbiased=False) + 1e-3
-                ).detach()
+                stdev = torch.sqrt(torch.var(torch.cat((enc_out, dec_out[:, label_len//scale:, :]), 1), dim=1, keepdim=True, unbiased=False)+ 1e-5).detach() 
                 enc_out = enc_out / stdev
                 dec_out = dec_out / stdev
-
-            enc_out = enc_out + mean
-            dec_out = dec_out + mean
+            enc_out = enc_out - mean
+            dec_out = dec_out - mean
 
             enc_out = self.enc_embedding(enc_out, x_mark_enc[:, scale//2::scale], scale=scale, first_scale=scales[0], label_len=label_len)
             enc_out, attns = self.encoder(enc_out)
