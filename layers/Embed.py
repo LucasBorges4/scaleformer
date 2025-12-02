@@ -181,11 +181,40 @@ class DataEmbedding_mine(nn.Module):
             else:
                 x[:,:label_len//scale,-1] = 0
                 x[:,label_len//scale:,-1] = 1
-        vembed = self.value_embedding(x)
-        pembed = self.position_embedding(x, scale)
-        tembed = self.temporal_embedding(x_mark, scale)
+
+        # embeddings
+        vembed = self.value_embedding(x)              # (B, L_v, D)
+        pembed = self.position_embedding(x, scale)    # (1, L_p, D) or (B, L_p, D) depending implementation
+        tembed = self.temporal_embedding(x_mark, scale)  # (B, L_t, D)
+
+        # normalize shapes: garantir que todos tenham L = vembed.size(1)
+        L = vembed.size(1)
+
+        # position embedding pode retornar (1, L_p, D). force expand para (B, L_p, D)
+        if pembed.dim() == 3 and pembed.size(0) == 1:
+            pembed = pembed.expand(vembed.size(0), -1, -1)
+
+        # agora pad/truncate pembed e tembed para terem comprimento L
+        def match_length(tensor, L):
+            if tensor is None:
+                return torch.zeros_like(vembed)
+            if tensor.size(1) == L:
+                return tensor
+            elif tensor.size(1) > L:
+                return tensor[:, :L, :].contiguous()
+            else:
+                # pad com a última posição (repeat last)
+                pad = L - tensor.size(1)
+                last = tensor[:, -1:, :].contiguous()
+                pad_tensor = last.repeat(1, pad, 1)
+                return torch.cat([tensor, pad_tensor], dim=1)
+
+        pembed = match_length(pembed, L)
+        tembed = match_length(tembed, L)
+
         x = vembed + pembed + tembed
         return self.dropout(x)
+
 
 
 class DataEmbedding_wo_pos(nn.Module):
