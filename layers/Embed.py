@@ -175,47 +175,47 @@ class DataEmbedding_mine(nn.Module):
     def forward(self, x, x_mark, scale, first_scale, label_len):
         if self.is_decoder:
             x = torch.cat((x, torch.ones((x.shape[0], x.shape[1], 1), device=x.device)), dim=2)
-            if scale==first_scale:
-                x[:,:label_len//scale,-1] = 0
-                x[:,label_len//scale:,-1] = 0.5
+            if scale == first_scale:
+                x[:, :label_len//scale, -1] = 0
+                x[:, label_len//scale:, -1] = 0.5
             else:
-                x[:,:label_len//scale,-1] = 0
-                x[:,label_len//scale:,-1] = 1
+                x[:, :label_len//scale, -1] = 0
+                x[:, label_len//scale:, -1] = 1
 
         # embeddings
-        vembed = self.value_embedding(x)              # (B, L, D)
-        pembed = self.position_embedding(x, scale)    # (1, Lp, D) or (B, Lp, D)
-        tembed = self.temporal_embedding(x_mark, scale)  # (B, Lt, D)
+        vembed = self.value_embedding(x)                   # (B, L, D)
+        pembed = self.position_embedding(x, scale)         # (1/Lp, D) or (B/Lp, D)
+        tembed = self.temporal_embedding(x_mark, scale)    # (B, Lt, D)
 
         B, L, D = vembed.shape
 
-        # Expand pembed if necessary
+        # Expand pembed if it is 1xLxD
         if pembed.dim() == 3 and pembed.size(0) == 1:
             pembed = pembed.expand(B, -1, -1)
 
-        # Função utilitária: pad com zeros caso o tensor seja curto
-        def pad_to_length(tensor, target_len):
+        # Nova função: apenas corta (nunca adiciona)
+        def truncate_to_length(tensor, target_len):
             current_len = tensor.size(1)
-            if current_len == target_len:
-                return tensor
-            elif current_len < target_len:
-                pad_size = target_len - current_len
-                pad_tensor = torch.zeros(
-                    (tensor.size(0), pad_size, tensor.size(2)),
-                    device=tensor.device,
-                    dtype=tensor.dtype
-                )
-                return torch.cat([tensor, pad_tensor], dim=1)
-            else:
-                # Não trunca — mantém como está e corta só para igualar visualmente
+            if current_len >= target_len:
+                # corta SE for maior
                 return tensor[:, :target_len, :]
+            else:
+                # mantém como está, mesmo que seja menor
+                return tensor
 
-        pembed = pad_to_length(pembed, L)
-        tembed = pad_to_length(tembed, L)
+        pembed = truncate_to_length(pembed, L)
+        tembed = truncate_to_length(tembed, L)
+
+        # soma — se algum estiver menor, PyTorch vai lançar erro.
+        # Para evitar erro, cortamos TODOS para o menor L_final
+        L_final = min(vembed.size(1), pembed.size(1), tembed.size(1))
+
+        vembed = vembed[:, :L_final, :]
+        pembed = pembed[:, :L_final, :]
+        tembed = tembed[:, :L_final, :]
 
         x = vembed + pembed + tembed
         return self.dropout(x)
-
 
 
 class DataEmbedding_wo_pos(nn.Module):
