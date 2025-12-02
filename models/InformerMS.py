@@ -19,28 +19,38 @@ class moving_avg(nn.Module):
     def __init__(self):
         super().__init__()
 
+class moving_avg(nn.Module):
+    def __init__(self):
+        super().__init__()
+
     def forward(self, x, scale=1):
         if x is None or scale == 1:
             return x
 
         B, T, C = x.shape
 
-        # depthwise convolution: 1 kernel por canal
+        # depthwise kernels (C kernels 1xscale)
         kernel = torch.ones(C, 1, scale, device=x.device) / scale
 
         x_perm = x.permute(0, 2, 1)  # (B, C, T)
 
-        pad = scale // 2
+        # padding simétrico, mas ajustado para evitar +1 passo extra
+        pad = (scale - 1) // 2
 
         x_smooth = torch.nn.functional.conv1d(
             x_perm,
-            kernel,          # shape (C,1,K)
+            kernel,
             stride=scale,
             padding=pad,
-            groups=C         # <- depthwise conv (canal independente)
+            groups=C
         )
 
+        # 🔥 garante que nunca retorna um tamanho maior que o esperado
+        expected_T = T // scale
+        x_smooth = x_smooth[:, :, :expected_T]
+
         return x_smooth.permute(0, 2, 1)
+
 
 class Model(nn.Module):
     """
