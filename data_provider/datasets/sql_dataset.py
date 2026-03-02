@@ -9,6 +9,7 @@
 
 from typing import Optional, List, Dict, Any, Tuple
 import pandas as pd
+import numpy as np
 from sqlalchemy import create_engine, text
 from .base_dataset import BaseTimeSeriesDataset
 
@@ -98,7 +99,7 @@ class SQLTimeSeriesDataset(BaseTimeSeriesDataset):
         # Rename time column to 'date' for compatibility
         self.df_raw = self.df_raw.rename(columns={self.time_column: 'date'})
         
-    def _split_data(self) -> Tuple[List[int], List[int], np.ndarray]:
+    def _split_data(self) -> Tuple[List[int], List[int]]:
         """Split data into train/val/test based on time."""
         data_len = len(self.df_raw)
         
@@ -110,7 +111,7 @@ class SQLTimeSeriesDataset(BaseTimeSeriesDataset):
         border1s = [0, num_train - self.seq_len, data_len - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, data_len]
         
-        return border1s, border2s, self.df_data.values
+        return border1s, border2s
 
 
 class PostgreSQLDataset(SQLTimeSeriesDataset):

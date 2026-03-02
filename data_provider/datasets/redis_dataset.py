@@ -236,7 +236,7 @@ class RedisDataset(BaseTimeSeriesDataset):
         else:
             self.df_raw = self._load_stream_data()
             
-    def _split_data(self) -> Tuple[List[int], List[int], np.ndarray]:
+    def _split_data(self) -> Tuple[List[int], List[int]]:
         """Split data chronologically."""
         data_len = len(self.df_raw)
         
@@ -247,4 +247,4 @@ class RedisDataset(BaseTimeSeriesDataset):
         border1s = [0, num_train - self.seq_len, data_len - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, data_len]
         
-        return border1s, border2s, self.df_data.values
+        return border1s, border2s

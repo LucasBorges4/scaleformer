@@ -28,4 +28,4 @@ __all__ = [
 ]
 
 # Import base_dataset for direct access
-from .base_dataset import BaseTimeSeriesDataset
+from .datasets.base_dataset import BaseTimeSeriesDataset

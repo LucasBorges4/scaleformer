@@ -75,7 +75,7 @@ def data_provider(args, flag):
         raise ValueError("Must specify either 'data' (legacy) or 'data_source' (new) argument")
     
     # Use new system if explicitly requested or if it's a new data source type
-    new_system_types = ['postgresql', 'mysql', 'sqlite', 'mongodb', 'redis', 'parquet']
+    new_system_types = ['postgresql', 'mysql', 'sqlite', 'mongodb', 'redis', 'parquet', 'ETTh1', 'ETTh2', 'ETTm1', 'ETTm2', 'custom', 'synthetic', 'pred']
     use_new_system = (
         _NEW_SYSTEM_AVAILABLE and 
         (data_source in new_system_types or getattr(args, 'use_new_system', False))

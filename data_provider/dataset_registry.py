@@ -8,7 +8,7 @@
 #####################################################################################
 
 from typing import Dict, Type, Optional, List
-from .base_dataset import (
+from .datasets.base_dataset import (
     BaseTimeSeriesDataset,
     CSVTimeSeriesDataset,
     SyntheticDataset,
@@ -73,6 +73,61 @@ DatasetRegistry.register('ETTm1', CSVTimeSeriesDataset)
 DatasetRegistry.register('ETTm2', CSVTimeSeriesDataset)
 DatasetRegistry.register('synthetic', SyntheticDataset)
 DatasetRegistry.register('pred', PredictionDataset)
+
+# Convenience function for backward compatibility
+
+def data_provider(args, flag):
+    """
+    Backward compatible data_provider function.
+    Works with both old and new dataset types.
+    
+    This function maintains the same interface as the original
+    data_provider to ensure existing models continue to work.
+    """
+    # Support both old 'data' attribute and new 'data_source'
+    data_source = getattr(args, 'data_source', getattr(args, 'data', 'custom'))
+    
+    # Handle legacy data_path vs data_path
+    data_path = getattr(args, 'data_path', args.data if hasattr(args, 'data') else '')
+    
+    dataset = create_dataset(
+        data_source=data_source,
+        root_path=args.root_path,
+        flag=flag,
+        size=[args.seq_len, args.label_len, args.pred_len],
+        features=args.features,
+        data_path=data_path,
+        target=getattr(args, 'target', 'OT'),
+        scale=getattr(args, 'scale', True),
+        timeenc=0 if getattr(args, 'embed', '') != 'timeF' else 1,
+        freq=getattr(args, 'freq', 'h')
+    )
+    
+    # Create DataLoader
+    from torch.utils.data import DataLoader
+    
+    if flag == 'test':
+        shuffle_flag = False
+        drop_last = True
+        batch_size = getattr(args, 'batch_size', 32)
+    elif flag == 'pred':
+        shuffle_flag = False
+        drop_last = False
+        batch_size = 1
+    else:
+        shuffle_flag = True
+        drop_last = True
+        batch_size = getattr(args, 'batch_size', 32)
+        
+    data_loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle_flag,
+        num_workers=getattr(args, 'num_workers', 0),
+        drop_last=drop_last
+    )
+    
+    return dataset, data_loader
 
 
 def create_dataset(

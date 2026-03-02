@@ -7,8 +7,9 @@
 # Efficient columnar storage format for time series data
 #####################################################################################
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import pandas as pd
+import numpy as np
 import pyarrow.parquet as pq
 from .base_dataset import BaseTimeSeriesDataset
 
@@ -97,7 +98,7 @@ class ParquetDataset(BaseTimeSeriesDataset):
         # Rename time column to 'date' for compatibility
         self.df_raw = self.df_raw.rename(columns={self.time_column: 'date'})
         
-    def _split_data(self) -> Tuple[List[int], List[int], np.ndarray]:
+    def _split_data(self) -> Tuple[List[int], List[int]]:
         """Split data chronologically."""
         data_len = len(self.df_raw)
         
@@ -108,4 +109,4 @@ class ParquetDataset(BaseTimeSeriesDataset):
         border1s = [0, num_train - self.seq_len, data_len - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, data_len]
         
-        return border1s, border2s, self.df_data.values
+        return border1s, border2s
