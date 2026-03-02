@@ -19,10 +19,6 @@ class moving_avg(nn.Module):
     def __init__(self):
         super().__init__()
 
-class moving_avg(nn.Module):
-    def __init__(self):
-        super().__init__()
-
     def forward(self, x, scale=1):
         if x is None or scale == 1:
             return x
@@ -45,7 +41,6 @@ class moving_avg(nn.Module):
             groups=C
         )
 
-        # 🔥 garante que nunca retorna um tamanho maior que o esperado
         expected_T = T // scale
         x_smooth = x_smooth[:, :, :expected_T]
 

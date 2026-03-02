@@ -109,7 +109,7 @@ class Model(nn.Module):
                 dec_out = self.upsample(dec_out_coarse.detach().permute(0,2,1)).permute(0,2,1)
                 dec_out[:, :label_len//scale, :] = self.mv(x_dec[:, :label_len, :], scale)
 
-            # cross-scale normalization
+            
             # cross-scale normalization
 
             # variável que regula o tamanho do dec_out usado na concatenação
