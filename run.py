@@ -33,7 +33,7 @@ def main():
             help='model name, options: [Autoformer, Informer, Transformer, Reformer, FEDformer] and their MS versions: [AutoformerMS, InformerMS, etc]')
 
     # data loader
-    parser.add_argument('--data', type=str, default='custom', help='dataset type')
+    parser.add_argument('--data', type=str, default='synthetic')
     parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
     parser.add_argument('--features', type=str, default='M',
@@ -44,9 +44,9 @@ def main():
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
-    parser.add_argument('--label_len', type=int, default=48, help='start token length')
-    parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
+    parser.add_argument('--seq_len', type=int, default=48, help='input sequence length')
+    parser.add_argument('--label_len', type=int, default=24, help='start token length')
+    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
 
     # supplementary config for FiLM model
     parser.add_argument('--modes1', type=int, default=64, help='modes to be selected random 64')
