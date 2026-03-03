@@ -5,6 +5,7 @@ from typing import Tuple, List, Optional
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+import torch
 
 
 class BaseTimeSeriesDataset:
@@ -93,7 +94,7 @@ class BaseTimeSeriesDataset:
         self.data_y = self.data[b1:b2]
         self.data_stamp = self._create_time_features(
             self.df_raw['date'].iloc[b1:b2]
-        )
+        ).values
     
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -109,7 +110,12 @@ class BaseTimeSeriesDataset:
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
         
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
+        return (
+            torch.tensor(seq_x, dtype=torch.float32),
+            torch.tensor(seq_y, dtype=torch.float32),
+            torch.tensor(seq_x_mark, dtype=torch.float32),
+            torch.tensor(seq_y_mark, dtype=torch.float32),
+        )
 
 
 class CSVTimeSeriesDataset(BaseTimeSeriesDataset):
