@@ -10,7 +10,7 @@ class SyntheticDataset(BaseTimeSeriesDataset):
     
     def __init__(self, root_path, flag='train', features='M', 
                  target='OT', scale=True, timeenc=0, freq='h', 
-                 n_samples=1000, n_features=5):
+                 n_samples=3000, n_features=5):
         super().__init__(root_path, flag, features, target, scale, timeenc, freq)
         self.n_samples = n_samples
         self.n_features = n_features
@@ -29,7 +29,7 @@ class SyntheticDataset(BaseTimeSeriesDataset):
     
     def _split_data(self):
         """Split synthetic data into train/val/test sets."""
-        train_ratio = 0.7
+        train_ratio = 0.6
         val_ratio = 0.2
         
         total = len(self.df_raw)
