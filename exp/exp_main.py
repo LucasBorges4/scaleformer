@@ -308,8 +308,8 @@ class Exp_Main(Exp_Basic):
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
                 # decoder input
-                dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
-                dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
+                dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :])
+                dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1)
 
                 # encoder - decoder
                 if self.args.use_amp:
