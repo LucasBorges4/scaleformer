@@ -228,31 +228,6 @@ class Exp_Main(Exp_Basic):
         return total_loss
 
     def train(self, setting):
-        train_data, train_loader = self._get_data(flag='train')
-        num_features = train_data.data_x.shape[-1]
-
-        self.args.enc_in = num_features
-        self.args.dec_in = num_features
-        self.args.c_out = num_features
-
-        print(f"[Dynamic Config] Detected features: {num_features}")
-
-        vali_data, vali_loader = self._get_data(flag='val')
-        test_data, test_loader = self._get_data(flag='test')
-        min_required = self.args.seq_len + self.args.pred_len
-
-        path = os.path.join(self.args.checkpoints, setting)
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        time_now = time.time()
-
-        train_steps = len(train_loader)
-        early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
-
-        self.model = self._build_model().to(self.device)
-        model_optim = self._select_optimizer()
-
         if len(test_data.data_x) < min_required:
             new_seq = len(test_data.data_x) // 2
             new_pred = len(test_data.data_x) // 4
@@ -267,8 +242,33 @@ class Exp_Main(Exp_Basic):
             # reconstruir modelo novamente
             self.model = self._build_model().to(self.device)
             model_optim = self._select_optimizer()
+        
+        else:            
+            train_data, train_loader = self._get_data(flag='train')
+            num_features = train_data.data_x.shape[-1]
 
+            self.args.enc_in = num_features
+            self.args.dec_in = num_features
+            self.args.c_out = num_features
 
+            print(f"[Dynamic Config] Detected features: {num_features}")
+
+            vali_data, vali_loader = self._get_data(flag='val')
+            test_data, test_loader = self._get_data(flag='test')
+            min_required = self.args.seq_len + self.args.pred_len
+
+            path = os.path.join(self.args.checkpoints, setting)
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+            time_now = time.time()
+
+            train_steps = len(train_loader)
+            early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
+
+            self.model = self._build_model().to(self.device)
+            model_optim = self._select_optimizer()
+        
         criterion = self._select_criterion()
         if self.args.loss=='mse':
             criterion_tmp = torch.nn.MSELoss(reduction='none')
