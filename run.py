@@ -42,7 +42,7 @@ def main():
     parser.add_argument('--target', type=str, default='OT')
     parser.add_argument('--freq', type=str, default='h')
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=48, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=24, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=24, help='start token length')
     parser.add_argument('--pred_len', type=int, default=24, help='prediction sequence length')
 
@@ -70,9 +70,9 @@ def main():
     parser.add_argument('--film_version', type=int, default=0, help='compression')
 
     # model define
-    parser.add_argument('--enc_in', type=int, default=7, help='encoder input size')
-    parser.add_argument('--dec_in', type=int, default=7, help='decoder input size')
-    parser.add_argument('--c_out', type=int, default=7, help='output size')
+    parser.add_argument('--enc_in', type=int, default=10, help='encoder input size')
+    parser.add_argument('--dec_in', type=int, default=10, help='decoder input size')
+    parser.add_argument('--c_out', type=int, default=10, help='output size')
     parser.add_argument('--d_model', type=int, default=512, help='dimension of model')
     parser.add_argument('--n_heads', type=int, default=8, help='num of heads')
     parser.add_argument('--e_layers', type=int, default=2, help='num of encoder layers')
@@ -91,10 +91,10 @@ def main():
     parser.add_argument('--do_predict', action='store_true', help='whether to predict unseen future data')
 
     # optimization
-    parser.add_argument('--num_workers', type=int, default=10, help='data loader num workers')
+    parser.add_argument('--num_workers', type=int, default=8, help='data loader num workers')
     parser.add_argument('--itr', type=int, default=3, help='experiments times')
     parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
-    parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
+    parser.add_argument('--batch_size', type=int, default=12, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=3, help='early stopping patience')
     parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
     parser.add_argument('--des', type=str, default='Exp', help='exp description')
@@ -108,8 +108,6 @@ def main():
     parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=False)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
 
-    args = parser.parse_args()
-    assert args.label_len + args.pred_len > 0
 
     if 'MS' in args.model:
         args.use_multi_scale = True
