@@ -98,7 +98,7 @@ class BaseTimeSeriesDataset:
         self.data_y = self.data[b1:b2]
         self.data_stamp = self._create_time_features(
             self.df_raw['date'].iloc[b1:b2]
-        ).values
+        )
     
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
