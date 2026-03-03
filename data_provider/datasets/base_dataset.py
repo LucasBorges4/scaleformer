@@ -69,8 +69,7 @@ class BaseTimeSeriesDataset:
         # Scaling
         if self.scale:
             self.scaler = StandardScaler()
-            if self.flag == 'train':
-                self.scaler.fit(self.df_data.values)
+            self.scaler.fit(self.df_data.values)
             self.data = self.scaler.transform(self.df_data.values)
         else:
             self.data = self.df_data.values
