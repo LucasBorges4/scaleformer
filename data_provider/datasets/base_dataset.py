@@ -101,7 +101,9 @@ class BaseTimeSeriesDataset:
         )
     
     def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len + 1
+        length = len(self.data_x) - self.seq_len - self.pred_len + 1
+        print(f"[Dataset Debug] len(data_x)={len(self.data_x)}, seq_len={self.seq_len}, pred_len={self.pred_len}, final_len={length}")
+        return max(0, length)
     
     def __getitem__(self, index):
         s_begin = index
