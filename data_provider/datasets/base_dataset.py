@@ -81,8 +81,12 @@ class BaseTimeSeriesDataset:
         pass
     
     def _create_time_features(self, dates):
-        """Create time features from dates."""
-        return dates
+        df = pd.DataFrame()
+        df['month'] = dates.dt.month
+        df['day'] = dates.dt.day
+        df['weekday'] = dates.dt.weekday
+        df['hour'] = dates.dt.hour
+        return df.values
     
     def _finalize_data(self):
         """Apply split and prepare final data."""
