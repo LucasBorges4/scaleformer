@@ -229,6 +229,14 @@ class Exp_Main(Exp_Basic):
 
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
+        num_features = train_data.data_x.shape[-1]
+
+        self.args.enc_in = num_features
+        self.args.dec_in = num_features
+        self.args.c_out = num_features
+
+        print(f"[Dynamic Config] Detected features: {num_features}")
+
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
 
@@ -241,6 +249,7 @@ class Exp_Main(Exp_Basic):
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
+        self.model = self._build_model().to(self.device)
         model_optim = self._select_optimizer()
 
 
