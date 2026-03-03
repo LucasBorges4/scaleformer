@@ -33,6 +33,7 @@ def main():
             help='model name, options: [Autoformer, Informer, Transformer, Reformer, FEDformer] and their MS versions: [AutoformerMS, InformerMS, etc]')
 
     # data loader
+    parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
     # data loader (synthetic only)
     parser.add_argument('--data', type=str, default='synthetic')
     parser.add_argument('--root_path', type=str, default='')
