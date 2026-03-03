@@ -307,10 +307,18 @@ class Exp_Main(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # decoder input
-                dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :])
-                dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1)
+               # decoder input
+                dec_zeros = torch.zeros(
+                    [batch_y.shape[0], self.args.pred_len, batch_y.shape[2]]
+                ).float().to(self.device)
 
+                dec_inp = torch.cat(
+                    [batch_y[:, :self.args.label_len, :], dec_zeros],
+                    dim=1
+                )
+
+                # Garantia explícita
+                assert dec_inp.shape[1] == self.args.label_len + self.args.pred_len
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():

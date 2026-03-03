@@ -94,6 +94,7 @@ class Dataset_ETT_hour(Dataset):
     def __getitem__(self, index):
         s_begin = index
         s_end = s_begin + self.seq_len
+
         r_begin = s_end - self.label_len
         r_end = r_begin + self.label_len + self.pred_len
 
@@ -102,7 +103,9 @@ class Dataset_ETT_hour(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
+        # Garantia explícita
+        assert len(seq_y) == self.label_len + self.pred_len
+        assert len(seq_y_mark) == self.label_len + self.pred_len
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1

@@ -83,6 +83,9 @@ class Model(nn.Module):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out, attns = self.encoder(enc_out, attn_mask=enc_self_mask)
 
+        assert x_dec.shape[1] == x_mark_dec.shape[1], \
+        f"Decoder length mismatch: x_dec={x_dec.shape}, x_mark_dec={x_mark_dec.shape}"
+
         dec_out = self.dec_embedding(x_dec, x_mark_dec)
         dec_out = self.decoder(dec_out, enc_out, x_mask=dec_self_mask, cross_mask=dec_enc_mask)
 

@@ -111,6 +111,7 @@ def main():
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
 
     args = parser.parse_args()
+    assert args.label_len + args.pred_len > 0
 
     if 'MS' in args.model:
         args.use_multi_scale = True
@@ -137,6 +138,7 @@ def main():
         args.c_out = c
 
     if args.data_path=='synthetic':
+        
         args.root_path = ''
         c = 3
         args.enc_in = c
