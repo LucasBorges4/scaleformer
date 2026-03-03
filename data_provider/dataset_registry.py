@@ -106,18 +106,25 @@ def data_provider(args, flag):
     # Create DataLoader
     from torch.utils.data import DataLoader
     
-    if flag == 'test':
-        shuffle_flag = False
+    if flag == 'train':
+        shuffle_flag = True
         drop_last = True
         batch_size = getattr(args, 'batch_size', 32)
+
+    elif flag == 'val':
+        shuffle_flag = False
+        drop_last = False
+        batch_size = getattr(args, 'batch_size', 32)
+
+    elif flag == 'test':
+        shuffle_flag = False
+        drop_last = False
+        batch_size = getattr(args, 'batch_size', 32)
+
     elif flag == 'pred':
         shuffle_flag = False
         drop_last = False
         batch_size = 1
-    else:
-        shuffle_flag = True
-        drop_last = True
-        batch_size = getattr(args, 'batch_size', 32)
         
     data_loader = DataLoader(
         dataset,
@@ -248,55 +255,3 @@ def _load_external_dataset(data_source: str) -> Type[BaseTimeSeriesDataset]:
 def _camel_case(snake_str: str) -> str:
     """Convert snake_case to CamelCase."""
     return ''.join(x.capitalize() for x in snake_str.lower().split('_'))
-
-
-# Convenience function for backward compatibility
-def data_provider(args, flag):
-    """
-    Backward compatible data_provider function.
-    Works with both old and new dataset types.
-    
-    This function maintains the same interface as the original
-    data_provider to ensure existing models continue to work.
-    """
-    # Support both old 'data' attribute and new 'data_source'
-    data_source = getattr(args, 'data_source', getattr(args, 'data', 'custom'))
-    
-    dataset = create_dataset(
-        data_source=data_source,
-        root_path=args.root_path,
-        flag=flag,
-        size=[args.seq_len, args.label_len, args.pred_len],
-        features=args.features,
-        data_path=getattr(args, 'data_path', args.data if hasattr(args, 'data') else ''),
-        target=getattr(args, 'target', 'OT'),
-        scale=getattr(args, 'scale', True),
-        timeenc=0 if getattr(args, 'embed', '') != 'timeF' else 1,
-        freq=getattr(args, 'freq', 'h')
-    )
-    
-    # Create DataLoader
-    from torch.utils.data import DataLoader
-    
-    if flag == 'test':
-        shuffle_flag = False
-        drop_last = True
-        batch_size = getattr(args, 'batch_size', 32)
-    elif flag == 'pred':
-        shuffle_flag = False
-        drop_last = False
-        batch_size = 1
-    else:
-        shuffle_flag = True
-        drop_last = True
-        batch_size = getattr(args, 'batch_size', 32)
-        
-    data_loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle_flag,
-        num_workers=getattr(args, 'num_workers', 0),
-        drop_last=drop_last
-    )
-    
-    return dataset, data_loader
