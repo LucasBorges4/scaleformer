@@ -1,74 +1,158 @@
-def _preprocess_data(self):
-        """
-        Preprocess the loaded data.
-        Common preprocessing steps for all datasets.
-        """
+# /home/lucas/github/scaleformer/data_provider/datasets/base_dataset.py
+
+from abc import abstractmethod
+from typing import Tuple, List, Optional
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+
+class BaseTimeSeriesDataset:
+    """Base abstract class for time series datasets."""
+    
+    def __init__(self, root_path: str, flag: str = 'train', 
+                 size: Optional[List[int]] = None,
+                 features: str = 'S', data_path: str = '',
+                 target: str = 'OT', scale: bool = True,
+                 timeenc: int = 0, freq: str = 'h'):
+        
+        self.root_path = root_path
+        self.flag = flag
+        self.size = size or [96, 48, 24]  # [seq_len, label_len, pred_len]
+        self.features = features
+        self.data_path = data_path
+        self.target = target
+        self.scale = scale
+        self.timeenc = timeenc
+        self.freq = freq
+        
+        self.seq_len, self.label_len, self.pred_len = self.size
+        self.set_type = {'train': 0, 'val': 1, 'test': 2, 'pred': 3}.get(flag, 0)
+        
+        self.df_raw = None
+        self.df_data = None
+        self.data = None
+        self.data_stamp = None
+        self.scaler = None
+        
+        self._load_data()
+        self._preprocess_data()
+        self._finalize_data()
+    
+    def _load_data(self):
+        """Load data - override in subclasses."""
+        pass
+    
+    def _preprocess_data(self):
+        """Common preprocessing."""
         if self.df_raw is None:
-            raise ValueError("Data not loaded. _load_data() must set self.df_raw")
-            
-        # Ensure date column is datetime
+            raise ValueError("Data not loaded")
+        
+        # Handle date column
         if 'date' in self.df_raw.columns:
             self.df_raw['date'] = pd.to_datetime(self.df_raw['date'])
         elif 'timestamp' in self.df_raw.columns:
             self.df_raw['date'] = pd.to_datetime(self.df_raw['timestamp'])
         else:
-            raise ValueError("DataFrame must contain a 'date' or 'timestamp' column")
-            
-        # Extract data columns based on features mode
-        if self.features in ['M', 'MS']:
-            # Skip 'date' column
-            cols_data = [col for col in self.df_raw.columns if col != 'date']
-        else:  # 'S'
-            if self.target not in self.df_raw.columns:
-                raise ValueError(f"Target column '{self.target}' not found")
-            cols_data = [self.target]
-            
-        self.df_data = self.df_raw[cols_data]
+            raise ValueError("Need 'date' or 'timestamp' column")
         
-        # Fit scaler if needed and transform data
+        # Select data columns
+        if self.features in ['M', 'MS']:
+            cols = [c for c in self.df_raw.columns if c != 'date']
+        else:
+            if self.target not in self.df_raw.columns:
+                raise ValueError(f"Target '{self.target}' not found")
+            cols = [self.target]
+        
+        self.df_data = self.df_raw[cols]
+        
+        # Scaling
         if self.scale:
             self.scaler = StandardScaler()
-            # Use training data for fitting (set_type 0 = train)
             if self.flag == 'train':
-                train_data = self.df_data.values
-                self.scaler.fit(train_data)
-                self.data = self.scaler.transform(self.df_data.values)
-            elif hasattr(self, 'train_data'):
-                self.scaler.fit(self.train_data)
-                self.data = self.scaler.transform(self.df_data.values)
-            else:
-                # Fallback: fit and transform on available data
                 self.scaler.fit(self.df_data.values)
-                self.data = self.scaler.transform(self.df_data.values)
+            self.data = self.scaler.transform(self.df_data.values)
         else:
             self.data = self.df_data.values
     
-
     @abstractmethod
     def _split_data(self) -> Tuple[List[int], List[int]]:
-        Split data into train/val/test or appropriate subsets.
-        Returns:
-            tuple: (border1s, border2s)
-        """
+        """Return border1s, border2s for train/val/test splits."""
         pass
-        
+    
+    def _create_time_features(self, dates):
+        """Create time features from dates."""
+        return dates
+    
     def _finalize_data(self):
-        """Finalize data by splitting and creating time features."""
+        """Apply split and prepare final data."""
         border1s, border2s = self._split_data()
+        idx = 0 if self.flag == 'pred' else self.set_type
         
-        # For prediction mode, always use first (and only) split
-        if self.flag == 'pred':
-            idx = 0
-        else:
-            idx = self.set_type
-            
-        border1 = border1s[idx]
-        border2 = border2s[idx]
+        b1, b2 = border1s[idx], border2s[idx]
+        self.data_x = self.data[b1:b2]
+        self.data_y = self.data[b1:b2]
+        self.data_stamp = self._create_time_features(
+            self.df_raw['date'].iloc[b1:b2]
+        )
+    
+    def __len__(self):
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
+    
+    def __getitem__(self, index):
+        s_begin = index
+        s_end = s_begin + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end = r_begin + self.label_len + self.pred_len
         
-        # Split data sequences
-        self.data_x = self.data[border1:border2]
-        self.data_y = self.data[border1:border2]
+        seq_x = self.data_x[s_begin:s_end]
+        seq_y = self.data_y[r_begin:r_end]
+        seq_x_mark = self.data_stamp[s_begin:s_end]
+        seq_y_mark = self.data_stamp[r_begin:r_end]
         
-        # Create time features for this slice
-        dates = self.df_raw['date'].iloc[border1:border2]
-        self.data_stamp = self._create_time_features(dates)
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+
+class CSVTimeSeriesDataset(BaseTimeSeriesDataset):
+    """Simple CSV dataset."""
+    
+    def _load_data(self):
+        path = self.data_path if self.data_path else 'ETTh1.csv'
+        self.df_raw = pd.read_csv(f"{self.root_path}/{path}")
+    
+    def _split_data(self):
+        total = len(self.df_raw)
+        train_end = int(total * 0.7)
+        val_end = int(total * 0.9)
+        
+        borders1 = [0, train_end, val_end, val_end]
+        borders2 = [train_end, val_end, total, total]
+        return borders1, borders2
+
+
+class SyntheticDataset(BaseTimeSeriesDataset):
+    """Synthetic data for testing."""
+    
+    def _load_data(self):
+        n = 1000
+        dates = pd.date_range('2020-01-01', periods=n, freq=self.freq)
+        data = np.random.randn(n, 5)
+        self.df_raw = pd.DataFrame(data, columns=[f'f{i}' for i in range(5)])
+        self.df_raw['date'] = dates
+    
+    def _split_data(self):
+        total = len(self.df_raw)
+        t1, t2 = int(total*0.7), int(total*0.9)
+        return [0, t1, t2, t2], [t1, t2, total, total]
+
+
+class PredictionDataset(BaseTimeSeriesDataset):
+    """Dataset for prediction mode."""
+    
+    def _load_data(self):
+        path = self.data_path if self.data_path else 'ETTh1.csv'
+        self.df_raw = pd.read_csv(f"{self.root_path}/{path}")
+    
+    def _split_data(self):
+        total = len(self.df_raw)
+        return [0], [total]

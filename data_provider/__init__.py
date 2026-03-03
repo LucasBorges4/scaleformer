@@ -1,31 +1,17 @@
-# Copyright (c) 2024 Scaleformer Project
-# All rights reserved.
-#
-# This source code is licensed under the Apache 2.0 license.
-#####################################################################################
-# Data Provider Package
-# Exposes dataset classes and factory functions
-#####################################################################################
+# /home/lucas/github/scaleformer/data_provider/__init__.py
 
-from .dataset_registry import (
-    DatasetRegistry,
-    create_dataset,
-    data_provider,
+from .data_factory import data_provider
+from .datasets.base_dataset import (
+    BaseTimeSeriesDataset,
     CSVTimeSeriesDataset,
     SyntheticDataset,
     PredictionDataset
 )
 
-# Expose dataset registry types
 __all__ = [
-    'DatasetRegistry',
-    'create_dataset',
     'data_provider',
     'BaseTimeSeriesDataset',
     'CSVTimeSeriesDataset',
     'SyntheticDataset',
     'PredictionDataset'
 ]
-
-# Import base_dataset for direct access
-from .datasets.base_dataset import BaseTimeSeriesDataset
