@@ -239,6 +239,7 @@ class Exp_Main(Exp_Basic):
 
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
+        min_required = self.args.seq_len + self.args.pred_len
 
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
@@ -251,6 +252,21 @@ class Exp_Main(Exp_Basic):
 
         self.model = self._build_model().to(self.device)
         model_optim = self._select_optimizer()
+
+        if len(test_data.data_x) < min_required:
+            new_seq = len(test_data.data_x) // 2
+            new_pred = len(test_data.data_x) // 4
+
+            print(f"[Auto Adjust] Dataset too small for testing.")
+            print(f"[Auto Adjust] seq_len {self.args.seq_len} → {new_seq}")
+            print(f"[Auto Adjust] pred_len {self.args.pred_len} → {new_pred}")
+
+            self.args.seq_len = new_seq
+            self.args.pred_len = new_pred
+
+            # reconstruir modelo novamente
+            self.model = self._build_model().to(self.device)
+            model_optim = self._select_optimizer()
 
 
         criterion = self._select_criterion()
