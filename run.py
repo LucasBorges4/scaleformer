@@ -33,16 +33,13 @@ def main():
             help='model name, options: [Autoformer, Informer, Transformer, Reformer, FEDformer] and their MS versions: [AutoformerMS, InformerMS, etc]')
 
     # data loader
+    # data loader (synthetic only)
     parser.add_argument('--data', type=str, default='synthetic')
-    #parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
-    #parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
-    parser.add_argument('--features', type=str, default='M',
-                        help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
-    parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
-    parser.add_argument('--freq', type=str, default='h',
-                        help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-    parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
-
+    parser.add_argument('--root_path', type=str, default='')
+    parser.add_argument('--data_path', type=str, default='synthetic')
+    parser.add_argument('--features', type=str, default='M')
+    parser.add_argument('--target', type=str, default='OT')
+    parser.add_argument('--freq', type=str, default='h')
     # forecasting task
     parser.add_argument('--seq_len', type=int, default=48, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=24, help='start token length')
@@ -130,51 +127,6 @@ def main():
         args.gpu = args.device_ids[0]
 
 
-    if args.data_path=='weather.csv':
-        args.root_path = './dataset/weather/' 
-        c = 21
-        args.enc_in = c
-        args.dec_in = c
-        args.c_out = c
-
-    if args.data_path=='synthetic':
-        
-        args.root_path = ''
-        c = 3
-        args.enc_in = c
-        args.dec_in = c
-        args.c_out = c
-
-    elif args.data_path=='traffic.csv':
-        args.root_path = './dataset/traffic/' 
-        c = 862
-        args.enc_in = c
-        args.dec_in = c
-        args.c_out = c
-        args.train_epochs = 3
-
-    elif args.data_path=='electricity.csv':
-        args.root_path = './dataset/electricity/' 
-        c = 321
-        args.enc_in = c
-        args.dec_in = c
-        args.c_out = c
-    elif args.data_path=='exchange_rate.csv':
-        args.root_path = './dataset/exchange_rate/' 
-        c = 8
-        args.enc_in = c
-        args.dec_in = c
-        args.c_out = c
-    elif args.data_path=='national_illness.csv':
-        args.root_path = './dataset/illness/'
-        c = 7
-        args.enc_in = c
-        args.dec_in = c
-        args.c_out = c
-        args.seq_len = 32
-        args.label_len = 16
-        args.scales = [8, 4, 2, 1]
-
     print('Args in experiment:')
     print(args)
 
@@ -185,7 +137,7 @@ def main():
 
     if args.is_training:
         for ii in range(args.itr):
-            setting = f'{args.data_path[:-4]}_{args.model}_{args.pred_len}_{args.loss}'
+            setting = f'{args.data}_{args.model}_{args.pred_len}_{args.loss}'
             exp = Exp(args)  # set experiments
             print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
             exp.train(setting)
