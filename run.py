@@ -44,7 +44,7 @@ def main():
     # forecasting task
     parser.add_argument('--seq_len', type=int, default=48, help='input sequence length')
     parser.add_argument('--label_len', type=int, default=24, help='start token length')
-    parser.add_argument('--pred_len', type=int, default=12, help='prediction sequence length')
+    parser.add_argument('--pred_len', type=int, default=24, help='prediction sequence length')
 
     # supplementary config for FiLM model
     parser.add_argument('--modes1', type=int, default=64, help='modes to be selected random 64')
