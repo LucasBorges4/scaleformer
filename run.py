@@ -108,6 +108,8 @@ def main():
     parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=False)
     parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
 
+    args = parser.parse_args()
+    assert args.label_len + args.pred_len > 0
 
     if 'MS' in args.model:
         args.use_multi_scale = True
